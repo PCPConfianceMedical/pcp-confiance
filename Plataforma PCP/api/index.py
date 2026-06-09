@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import pymysql
 import os
@@ -10,6 +10,19 @@ import traceback
 
 app = Flask(__name__)
 CORS(app)
+
+# Diretório raiz do projeto (um nível acima de api/)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# ── Páginas HTML ──────────────────────────────────────────────────────────────
+
+@app.route('/')
+def portal():
+    return send_from_directory(BASE_DIR, 'plataforma-pcp.html')
+
+@app.route('/pcp')
+def pcp():
+    return send_from_directory(BASE_DIR, 'modulo-pcp.html')
 
 # ── Conexão com o banco ───────────────────────────────────────────────────────
 # Suporta variáveis do Railway (MYSQLHOST, MYSQLUSER...) e variáveis personalizadas (MYSQL_HOST...)
