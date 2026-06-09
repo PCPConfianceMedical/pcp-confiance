@@ -494,19 +494,21 @@ def analisar_pdf():
         db.close()
 
 
+def num_br(s: str) -> float:
+    """Converte número brasileiro (1.234,56) para float."""
+    return float(s.replace('.', '').replace(',', '.'))
+
 def extrair_dados_pdf(pdf_bytes: bytes) -> dict:
     """
-    Extrai dados de um PDF de Pedido de Venda (Confiance Medical).
-    Adapte os padrões de regex conforme o layout real do seu PDF.
+    Parser específico para Pedidos de Venda da Confiance Medical.
+    Formato: DOCUMENTO.: PEDIDO.: 99.810 | itens com código de transação (90155/90175)
     """
-    texto = ''
-    tabelas = []
+    from collections import Counter
 
+    texto = ''
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
         for page in pdf.pages:
             texto += (page.extract_text() or '') + '\n'
-            for t in (page.extract_tables() or []):
-                tabelas.append(t)
 
     dados = {
         'numero_pedido': None,
@@ -521,140 +523,131 @@ def extrair_dados_pdf(pdf_bytes: bytes) -> dict:
     }
 
     # ── Número do pedido ──────────────────────────────────────────────────────
-    # Padrões: "PV 99810", "Pedido: 99810", "N° 99810"
-    for pattern in [
-        r'PV\s*[:\-]?\s*(\d{4,6})',
-        r'(?:Pedido|N[º°o]?\s*(?:do\s+)?Pedido)[:\s#–\-]*(\d{4,6})',
-        r'(?:Número|Numero)[:\s]*(\d{4,6})',
-    ]:
-        m = re.search(pattern, texto, re.IGNORECASE)
+    # Formato: "PEDIDO.: 99.810" — o ponto é separador de milhar, remover
+    m = re.search(r'PEDIDO\.[:\s]+(\d[\d.]+)', texto, re.IGNORECASE)
+    if m:
+        dados['numero_pedido'] = m.group(1).replace('.', '')
+    else:
+        # Fallback: qualquer padrão de número de pedido
+        m = re.search(r'(?:pedido|PV)[^\d]*(\d{4,6})', texto, re.IGNORECASE)
         if m:
-            dados['numero_pedido'] = m.group(1).strip()
-            break
+            dados['numero_pedido'] = m.group(1)
 
     # ── Cliente ───────────────────────────────────────────────────────────────
-    for pattern in [
-        r'(?:Cliente|Razão\s+Social|Empresa)[:\s]+([^\n\r]{3,80})',
-        r'(?:Para|Destinatário)[:\s]+([^\n\r]{3,80})',
-    ]:
-        m = re.search(pattern, texto, re.IGNORECASE)
+    # Formato: "Cliente.......: 2.585 -LIGA NORTE RIOGRANDENSE CONTRA O CANCER"
+    m = re.search(r'Cliente[.\s]+:\s*[\d.]+ -(.+?)(?:\n|Endere)', texto, re.IGNORECASE)
+    if m:
+        dados['cliente'] = m.group(1).strip()
+    else:
+        m = re.search(r'Cliente[.\s]+:\s*(.+?)(?:\n|Endere)', texto, re.IGNORECASE)
         if m:
-            dados['cliente'] = m.group(1).strip()
-            break
+            dados['cliente'] = re.sub(r'^\d[\d.]* -?', '', m.group(1)).strip()
 
-    # ── Estado (UF) ───────────────────────────────────────────────────────────
+    # ── Estado do CLIENTE (segunda ocorrência de "Estado") ────────────────────
+    # A empresa é RJ; o cliente pode ser de outro estado
     UFS = {'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS',
            'MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'}
-    for uf in re.findall(r'\b([A-Z]{2})\b', texto):
+    estados_encontrados = re.findall(r'Estado[.\s]+:\s*([A-Z]{2})', texto, re.IGNORECASE)
+    for uf in estados_encontrados:
         if uf in UFS:
-            dados['estado'] = uf
-            break
+            dados['estado'] = uf  # pega o último (cliente), não o primeiro (empresa RJ)
 
     # ── Datas ─────────────────────────────────────────────────────────────────
-    datas = re.findall(r'\d{2}/\d{2}/\d{4}', texto)
-    if datas:
-        dados['data_emissao'] = datas[0]
-    if len(datas) >= 2:
-        dados['data_entrega'] = datas[-1]
+    # Data emissão: próxima de "EMISSÃO" no texto
+    m = re.search(r'EMISS[ÃA]O[^0-9]*(\d{1,2}/\d{2}/\d{4})', texto, re.IGNORECASE)
+    if m:
+        d = m.group(1)
+        if len(d.split('/')[0]) == 1:
+            d = '0' + d
+        dados['data_emissao'] = d
+
+    # Data entrega: a mais frequente no texto (aparece em cada item)
+    todas_datas = re.findall(r'\b(\d{2}/\d{2}/\d{4})\b', texto)
+    if todas_datas:
+        contagem = Counter(todas_datas)
+        dados['data_entrega'] = contagem.most_common(1)[0][0]
+        if not dados['data_emissao'] and len(contagem) > 1:
+            dados['data_emissao'] = contagem.most_common()[-1][0]
 
     # ── Frete ─────────────────────────────────────────────────────────────────
-    m = re.search(r'Frete[:\s]+([^\n\r]{2,50})', texto, re.IGNORECASE)
+    m = re.search(r'Frete CIF ou FOB:(.+?)(?:\n|CPF)', texto, re.IGNORECASE)
     if m:
         dados['frete'] = m.group(1).strip()
 
     # ── Origem de vendas ──────────────────────────────────────────────────────
-    m = re.search(r'(?:Origem|Vendedor|Representante)[:\s]+([^\n\r]{2,60})', texto, re.IGNORECASE)
+    m = re.search(r'Origem de Vendas:([^\n\r]+?)(?:\s+Origem do Cliente|$)', texto, re.IGNORECASE | re.MULTILINE)
     if m:
         dados['origem_vendas'] = m.group(1).strip()
 
-    # ── Observações ───────────────────────────────────────────────────────────
-    m = re.search(r'(?:Obs(?:ervações?)?|Informações?\s+Adicionais)[:\s]+([^\n]{5,300})', texto, re.IGNORECASE)
+    # ── Observações da NF ─────────────────────────────────────────────────────
+    m = re.search(r'Observações NF:\s*(.+?)(?:\n.*?____|$)', texto, re.IGNORECASE | re.DOTALL)
     if m:
-        dados['obs_gerais'] = m.group(1).strip()
+        obs = m.group(1).strip().replace('\n', ' ')
+        dados['obs_gerais'] = obs[:500]
 
-    # ── Itens — extração via tabelas ──────────────────────────────────────────
+    # ── Itens ─────────────────────────────────────────────────────────────────
+    # Cada linha de item começa com código de transação de 5 dígitos (90155 ou 90175)
+    # Formato: TRANS CODIGO [LOT] DESCRICAO DATA QTD VLR_UNIT TABELA VLR_BRUTO
+    # Os valores monetários usam formato BR: 1.234,56
     itens = []
-    for tabela in tabelas:
-        for linha in tabela:
-            if not linha or len(linha) < 3:
-                continue
-            # Tenta identificar linhas de item pelo código de produto
-            codigo_raw = str(linha[0] or '').strip()
-            if not re.match(r'^[A-Z0-9][\w\-\.]{1,19}$', codigo_raw):
-                continue  # não parece um código de produto
-            try:
-                # Tenta extrair derivação (campo opcional)
-                derivacao = ''
-                descricao_idx = 1
-                if len(linha) >= 5:
-                    # Se a segunda coluna for curta pode ser derivação
-                    col1 = str(linha[1] or '').strip()
-                    if re.match(r'^\d{2}$', col1):
-                        derivacao = col1
-                        descricao_idx = 2
+    linhas_item = re.findall(r'^\d{5}\s+(.+)', texto, re.MULTILINE)
 
-                descricao = str(linha[descricao_idx] or '').strip()
-                if not descricao or len(descricao) < 3:
-                    continue
+    for linha in linhas_item:
+        linha = linha.strip()
+        # Extrai os últimos 4 números em formato BR (X,XX ou X.XXX,XX)
+        numeros = re.findall(r'[\d.]+,\d{2}', linha)
+        if len(numeros) < 3:
+            continue
 
-                # Quantidade: procurar número nos campos restantes
-                qtd = 0
-                vlr_unit = 0
-                vlr_bruto = 0
-                nums = []
-                for cell in linha[descricao_idx+1:]:
-                    raw = re.sub(r'[^\d,\.]', '', str(cell or ''))
-                    raw = raw.replace('.', '').replace(',', '.')
-                    try:
-                        nums.append(float(raw))
-                    except:
-                        pass
+        # últimos 4 números = qty, vlr_unit, tabela, vlr_bruto
+        # (ou 3 se tabela == vlr_unit)
+        if len(numeros) >= 4:
+            qtd_s, vlr_unit_s = numeros[-4], numeros[-3]
+            vlr_bruto_s = numeros[-1]
+        else:
+            qtd_s, vlr_unit_s = numeros[-3], numeros[-2]
+            vlr_bruto_s = numeros[-1]
 
-                if len(nums) >= 1:
-                    qtd = nums[0]
-                if len(nums) >= 2:
-                    vlr_unit = nums[-2] if len(nums) >= 3 else nums[1]
-                if len(nums) >= 2:
-                    vlr_bruto = nums[-1]
+        try:
+            qtd      = num_br(qtd_s)
+            vlr_unit = num_br(vlr_unit_s)
+            vlr_bruto= num_br(vlr_bruto_s)
+        except Exception:
+            continue
 
-                if qtd > 0 and descricao:
-                    itens.append({
-                        'codigo': codigo_raw,
-                        'derivacao': derivacao,
-                        'descricao': descricao,
-                        'quantidade': qtd,
-                        'vlr_unitario': vlr_unit,
-                        'vlr_bruto': vlr_bruto or (qtd * vlr_unit),
-                    })
-            except Exception:
-                continue
+        if qtd <= 0:
+            continue
 
-    # ── Fallback: extração via regex no texto corrido ─────────────────────────
-    if not itens:
-        # Padrão genérico: CODIGO  Descrição  Qtd  Vlr.Unit  Vlr.Bruto
-        pattern = re.compile(
-            r'^([A-Z0-9][\w\-\.]{2,18})\s+'   # código
-            r'(.{5,60}?)\s+'                   # descrição
-            r'(\d+(?:[.,]\d+)?)\s+'            # quantidade
-            r'[\d.,]+\s+'                       # vlr unit (pode ser ignorado)
-            r'([\d.,]+)',                        # vlr bruto
-            re.MULTILINE
-        )
-        for m in pattern.finditer(texto):
-            try:
-                qtd = float(m.group(3).replace(',', '.'))
-                bruto_raw = m.group(4).replace('.', '').replace(',', '.')
-                bruto = float(bruto_raw)
-                itens.append({
-                    'codigo': m.group(1).strip(),
-                    'derivacao': '',
-                    'descricao': m.group(2).strip(),
-                    'quantidade': qtd,
-                    'vlr_unitario': round(bruto / qtd, 2) if qtd else 0,
-                    'vlr_bruto': bruto,
-                })
-            except Exception:
-                continue
+        # Remove os números do final para obter o prefixo (código + lote + descrição)
+        primeiro_num = re.search(r'[\d.]+,\d{2}', linha)
+        prefixo = linha[:primeiro_num.start()].strip() if primeiro_num else linha
+
+        # Extrai código do produto e lote opcional
+        m_cod = re.match(r'([A-Z]{2,5}\d{4,5})\s+(?:(\d{3})\s+)?(.+)', prefixo)
+        if not m_cod:
+            continue
+
+        codigo    = m_cod.group(1).strip()
+        lote      = (m_cod.group(2) or '').strip()
+        descricao = m_cod.group(3).strip()
+
+        # Limpa datas e lixo da descrição
+        descricao = re.sub(r'\d{2}/\d{2}/\d{4}', '', descricao)
+        descricao = re.sub(r'\s+', ' ', descricao).strip()
+        # Remove sufixos numéricos soltos (artefatos de extração)
+        descricao = re.sub(r'\s+\d{1,2}$', '', descricao).strip()
+
+        if not descricao or len(descricao) < 3:
+            continue
+
+        itens.append({
+            'codigo':      codigo,
+            'derivacao':   lote,
+            'descricao':   descricao,
+            'quantidade':  qtd,
+            'vlr_unitario': vlr_unit,
+            'vlr_bruto':   vlr_bruto,
+        })
 
     dados['itens'] = itens
     return dados
