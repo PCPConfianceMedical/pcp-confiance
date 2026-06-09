@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos PCP — Confiance Medical</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Raleway:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul:   #1F2C4E;
+  --azul-m: #326A84;
+  --azul-c: #E6F9FC;
+  --ciano:  #64C3D1;
+  --cinza:  #F2F2F2;
+  --branco: #fff;
+  --borda:  #dde3ec;
+  --texto:  #1a2233;
+  --texto-s:#6b7a99;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Raleway', sans-serif;
+  background: var(--cinza);
+  color: var(--texto);
+  min-height: 100vh;
+}
+
+/* ── Sidebar ──────────────────────────────────────────── */
+.sidebar {
+  position: fixed; top: 0; left: 0; height: 100vh; width: 220px;
+  background: linear-gradient(180deg, #1F2C4E 0%, #326A84 100%);
+  display: flex; flex-direction: column; z-index: 100;
+  transition: width .25s ease; overflow: hidden;
+}
+.sidebar.collapsed { width: 56px; }
+
+.sidebar-logo {
+  padding: 18px 12px 16px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.15);
+  display: flex; flex-direction: column; gap: 10px;
+  flex-shrink: 0; position: relative;
+}
+.sidebar-logo img { height: 36px; display: block; object-fit: contain; }
+.sidebar-logo-text { overflow: hidden; transition: opacity .25s, max-height .25s; max-height: 40px; }
+.sidebar-logo h1 {
+  font-family: 'Montserrat', sans-serif;
+  color: #fff; font-size: 13px; font-weight: 700; white-space: nowrap;
+}
+.sidebar-logo span { color: rgba(255,255,255,.5); font-size: 11px; white-space: nowrap; }
+.sidebar.collapsed .sidebar-logo-text { opacity: 0; max-height: 0; overflow: hidden; }
+
+.toggle-btn {
+  position: absolute; top: 14px; right: 10px;
+  background: rgba(255,255,255,.12); border: none; color: #fff;
+  width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background .15s;
+}
+.toggle-btn:hover { background: rgba(255,255,255,.25); }
+.toggle-btn svg { width: 14px; height: 14px; transition: transform .25s; }
+.sidebar.collapsed .toggle-btn svg { transform: rotate(180deg); }
+
+.nav { flex: 1; padding: 14px 0; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+  color: rgba(255,255,255,.75); font-size: 13px; cursor: pointer;
+  transition: all .2s; border-left: 3px solid transparent;
+  white-space: nowrap; position: relative;
+}
+.nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+.nav-item.active { background: rgba(255,255,255,.12); color: #fff; border-left-color: var(--ciano); }
+.nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+.nav-item .nav-label { overflow: hidden; transition: opacity .2s, width .2s; }
+.sidebar.collapsed .nav-label { opacity: 0; width: 0; }
+.nav-item[title]:hover::after {
+  content: attr(title); position: absolute; left: 64px;
+  background: #1a2233; color: #fff; padding: 4px 10px;
+  border-radius: 6px; font-size: 12px; white-space: nowrap;
+  z-index: 200; pointer-events: none;
+}
+
+.sidebar-footer { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.1); }
+.back-link {
+  display: flex; align-items: center; gap: 8px;
+  color: rgba(255,255,255,.5); font-size: 12px; text-decoration: none;
+  transition: color .2s; white-space: nowrap;
+}
+.back-link:hover { color: rgba(255,255,255,.85); }
+.back-link .nav-label { overflow: hidden; transition: opacity .2s; }
+.sidebar.collapsed .back-link .nav-label { opacity: 0; width: 0; }
+
+/* ── Main ─────────────────────────────────────────────── */
+.main { margin-left: 220px; padding: 32px; min-height: 100vh; transition: margin-left .25s ease; }
+.main.expanded { margin-left: 56px; }
+.page { display: none; }
+.page.active { display: block; }
+
+h2 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 22px; font-weight: 700; color: var(--azul);
+}
+.subtitle { color: var(--texto-s); font-size: 13px; margin-top: 4px; margin-bottom: 24px; }
+
+.card {
+  background: var(--branco); border-radius: 12px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.07); padding: 24px;
+}
+
+/* ── Upload / Drop zone ───────────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--borda); border-radius: 10px;
+  padding: 48px 24px; text-align: center; cursor: pointer; transition: all .2s;
+}
+.drop-zone:hover, .drop-zone.drag { border-color: var(--azul-m); background: var(--azul-c); }
+.drop-zone svg { width: 48px; height: 48px; stroke: var(--azul-m); margin-bottom: 12px; }
+.drop-zone p { color: var(--texto-s); font-size: 14px; }
+.drop-zone strong { color: var(--azul-m); }
+#pcp-file-name { margin-top: 8px; font-size: 13px; color: var(--azul-m); }
+
+/* ── Botões ───────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border-radius: 8px; font-size: 13px;
+  font-weight: 600; cursor: pointer; border: none; transition: all .15s;
+  font-family: 'Raleway', sans-serif;
+}
+.btn-primary { background: var(--azul-m); color: #fff; }
+.btn-primary:hover { background: var(--azul); }
+.btn-ghost { background: transparent; color: var(--azul); border: 1px solid var(--borda); }
+.btn-ghost:hover { background: var(--cinza); }
+.btn-danger { background: #fee2e2; color: #991b1b; }
+.btn-danger:hover { background: #fca5a5; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Tabela ───────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; margin-top: 16px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: var(--azul); color: #fff;
+  padding: 11px 14px; text-align: left;
+  font-weight: 600; font-size: 12px; white-space: nowrap;
+  font-family: 'Montserrat', sans-serif;
+}
+tbody tr:nth-child(even) { background: #f8fafc; }
+tbody tr:hover { background: #eef4fb; }
+tbody td { padding: 11px 14px; border-bottom: 1px solid var(--borda); vertical-align: middle; }
+.cod-cell { font-family: monospace; font-size: 12px; font-weight: 600; color: var(--azul); }
+.val-cell { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Status select ────────────────────────────────────── */
+.status-select {
+  padding: 5px 10px; border-radius: 20px; border: none;
+  font-size: 12px; font-weight: 600; cursor: pointer; outline: none;
+  appearance: none; -webkit-appearance: none; padding-right: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
+.st-nao-iniciado { background: #e0e7ff; color: #3730a3; }
+.st-producao     { background: #fef9c3; color: #854d0e; }
+.st-pausado      { background: #ffedd5; color: #9a3412; }
+.st-comprado     { background: #e0f2fe; color: #0369a1; }
+.st-finalizado   { background: #dcfce7; color: #166534; }
+
+/* ── Detalhe ──────────────────────────────────────────── */
+.detalhe-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; margin-bottom: 20px;
+}
+.detalhe-header h2 { margin-bottom: 0; }
+.detalhe-meta { display: flex; gap: 24px; margin-top: 8px; flex-wrap: wrap; }
+.detalhe-meta span { font-size: 13px; color: var(--texto-s); }
+.detalhe-meta strong { color: var(--texto); }
+
+/* ── KPIs ─────────────────────────────────────────────── */
+.kpi-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+.kpi {
+  background: var(--branco); border-radius: 10px; padding: 14px 20px;
+  border-left: 4px solid var(--azul-m); flex: 1; min-width: 140px;
+}
+.kpi .label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; color: var(--texto-s); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.kpi .value {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 20px; font-weight: 700; color: var(--azul); margin-top: 4px;
+}
+
+/* ── Toast ────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 28px; right: 28px;
+  background: #1a2233; color: #fff; padding: 12px 20px;
+  border-radius: 10px; font-size: 13px; font-weight: 500;
+  transform: translateY(80px); opacity: 0; transition: all .3s; z-index: 9999;
+}
+#toast.show { transform: none; opacity: 1; }
+#toast.error { background: #991b1b; }
+
+.empty { text-align: center; padding: 60px; color: var(--texto-s); }
+.empty svg { width: 48px; height: 48px; stroke: var(--borda); margin-bottom: 12px; }
+
+/* ── Filtros ──────────────────────────────────────────── */
+.filter-input {
+  padding: 8px 12px; border: 1px solid var(--borda); border-radius: 8px;
+  font-size: 13px; outline: none; font-family: 'Raleway', sans-serif; transition: border .15s;
+}
+.filter-input:focus { border-color: var(--azul-m); }
+.filter-select {
+  padding: 8px 12px; border: 1px solid var(--borda); border-radius: 8px;
+  font-size: 13px; outline: none; background: #fff; cursor: pointer;
+  font-family: 'Raleway', sans-serif; color: var(--texto); min-width: 140px;
+}
+.sortable { cursor: pointer; user-select: none; }
+.sortable:hover { background: #2a5a74; }
+
+/* ── Progress bar ─────────────────────────────────────── */
+.progress-bar {
+  height: 6px; border-radius: 3px; background: #e2e8f0;
+  overflow: hidden; width: 120px;
+}
+.progress-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+
+/* ── Previsões ────────────────────────────────────────── */
+.previsoes-bar {
+  display: flex; align-items: center; gap: 12px; background: #fff;
+  border-radius: 12px; padding: 16px 24px; margin-bottom: 20px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.07); flex-wrap: wrap;
+}
+.prev-field { display: flex; flex-direction: column; gap: 4px; }
+.prev-field label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px; font-weight: 700; color: var(--texto-s);
+  text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
+}
+.prev-field label small { font-weight: 400; text-transform: none; letter-spacing: 0; font-family: 'Raleway', sans-serif; }
+.prev-input {
+  padding: 8px 12px; border-radius: 8px; font-size: 14px;
+  font-weight: 600; font-family: 'Raleway', sans-serif; min-width: 150px;
+}
+.prev-edit  { border: 2px solid var(--azul-m); color: var(--azul); cursor: pointer; outline: none; }
+.prev-edit:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(50,106,132,.15); }
+.prev-calc  { border: 2px solid var(--borda); background: #f8fafc; color: #374151; cursor: default; }
+.prev-arrow { font-size: 20px; color: var(--borda); font-weight: 300; margin-top: 16px; }
+
+/* ── Mini badges ──────────────────────────────────────── */
+.mini-badge {
+  display: inline-block; padding: 2px 7px; border-radius: 10px;
+  font-size: 10px; font-weight: 600; margin: 1px;
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img src="https://confiancemedical.com.br/wp-content/uploads/2024/07/logo-confiance.png" alt="Confiance Medical">
+    <div class="sidebar-logo-text">
+      <h1>Pedidos PCP</h1>
+      <span>Planejamento e Controle</span>
+    </div>
+    <button class="toggle-btn" onclick="toggleSidebar()" title="Recolher menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showPage('pedidos')" title="Carteira de Pedidos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+      </svg>
+      <span class="nav-label">Carteira de Pedidos</span>
+    </div>
+    <div class="nav-item" onclick="showPage('liberados')" title="Pedidos Liberados">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <polyline points="9 12 11 14 15 10"/>
+      </svg>
+      <span class="nav-label">Pedidos Liberados</span>
+    </div>
+    <div class="nav-item" onclick="showPage('planejamento')" title="Planejamento Produtivo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+        <line x1="8" y1="18" x2="21" y2="18"/>
+        <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>
+        <line x1="3" y1="18" x2="3.01" y2="18"/>
+      </svg>
+      <span class="nav-label">Plan. Produtivo</span>
+    </div>
+    <div class="nav-item" onclick="showPage('historico')" title="Histórico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <span class="nav-label">Histórico</span>
+    </div>
+    <div class="nav-item" onclick="showPage('posicao')" title="Posição por Data">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <span class="nav-label">Posição por Data</span>
+    </div>
+    <div class="nav-item" onclick="showPage('upload')" title="Novo Pedido">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <span class="nav-label">Novo Pedido</span>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="/" class="back-link" title="Voltar ao Portal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      <span class="nav-label">Voltar ao Portal</span>
+    </a>
+  </div>
+</div>
+
+<!-- Main content -->
+<div class="main" id="main-content">
+
+  <!-- CARTEIRA DE PEDIDOS -->
+  <div class="page active" id="page-pedidos">
+    <h2>Carteira de Pedidos</h2>
+    <p class="subtitle">Acompanhe todos os pedidos e filtre por qualquer campo.</p>
+    <div class="kpi-row" id="dash-kpis" style="margin-bottom:20px"></div>
+    <div class="card" style="padding:16px 20px;margin-bottom:16px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <input class="filter-input" type="text" id="f-busca" placeholder="🔍  Buscar pedido ou cliente..." oninput="aplicarFiltros()" style="flex:2;min-width:200px">
+        <select class="filter-select" id="f-estado" onchange="aplicarFiltros()">
+          <option value="">Todos os estados</option>
+        </select>
+        <select class="filter-select" id="f-origem" onchange="aplicarFiltros()">
+          <option value="">Toda origem</option>
+        </select>
+        <select class="filter-select" id="f-status" onchange="aplicarFiltros()">
+          <option value="">Qualquer status</option>
+          <option value="nao_iniciado">Não iniciados</option>
+          <option value="producao">Em Produção</option>
+          <option value="pausado">Pausado</option>
+          <option value="comprado">Comprado</option>
+          <option value="finalizado">Todos finalizados</option>
+        </select>
+        <select class="filter-select" id="f-segmento" onchange="aplicarFiltros()">
+          <option value="">Todo segmento</option>
+          <option value="Venda">Venda</option>
+          <option value="Locação">Locação</option>
+          <option value="Locação com venda futura">Locação c/ venda futura</option>
+          <option value="Demonstração">Demonstração</option>
+          <option value="Backup">Backup</option>
+          <option value="AT">AT</option>
+          <option value="P&D">P&amp;D</option>
+          <option value="Material de Consumo">Material de Consumo</option>
+          <option value="Antecipado">Antecipado</option>
+        </select>
+        <button class="btn btn-ghost" onclick="limparFiltros()" style="white-space:nowrap">✕ Limpar</button>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--borda)">
+        <span style="font-size:12px;font-weight:600;color:var(--texto-s);white-space:nowrap">📅 Prev. Liberação:</span>
+        <label style="font-size:12px;color:var(--texto-s)">De</label>
+        <input class="filter-input" type="date" id="f-lib-de" onchange="aplicarFiltros()" style="font-size:13px;padding:6px 10px">
+        <label style="font-size:12px;color:var(--texto-s)">até</label>
+        <input class="filter-input" type="date" id="f-lib-ate" onchange="aplicarFiltros()" style="font-size:13px;padding:6px 10px">
+        <select class="filter-select" id="f-lib-status" onchange="aplicarFiltros()" style="min-width:180px">
+          <option value="">Qualquer liberação</option>
+          <option value="definida">Com data definida</option>
+          <option value="indefinida">Sem data definida</option>
+        </select>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap">
+        <table id="dash-table">
+          <thead>
+            <tr>
+              <th onclick="sortBy('numero_pedido')" class="sortable">Nº Pedido ⇅</th>
+              <th onclick="sortBy('cliente')" class="sortable">Cliente ⇅</th>
+              <th>Estado</th>
+              <th onclick="sortBy('segmento')" class="sortable">Segmento ⇅</th>
+              <th>Origem</th>
+              <th onclick="sortBy('data_entrega')" class="sortable">Entrega ⇅</th>
+              <th onclick="sortBy('prev_liberacao')" class="sortable">Prev. Liberação ⇅</th>
+              <th onclick="sortBy('total_volumes')" class="sortable" style="text-align:center">Volumes ⇅</th>
+              <th onclick="sortBy('valor_total')" class="sortable" style="text-align:right">Valor Total ⇅</th>
+              <th>Progresso</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="dash-tbody"></tbody>
+        </table>
+      </div>
+      <div id="dash-empty" style="display:none" class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <p>Nenhum pedido encontrado.<br>Ajuste os filtros ou importe um novo pedido.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- POSIÇÃO POR DATA -->
+  <div class="page" id="page-posicao">
+    <h2>Posição por Data</h2>
+    <p class="subtitle">Selecione uma data para ver os pedidos que estavam ativos naquele momento.</p>
+    <div class="card" style="padding:20px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <label style="font-size:13px;font-weight:600;color:var(--texto-s)">📅 Selecionar data:</label>
+        <input type="date" id="posicao-data" class="filter-input"
+               style="font-size:14px;padding:8px 14px;font-weight:600;color:var(--azul);border-color:var(--azul-m)"
+               onchange="carregarPosicao()">
+        <span id="posicao-info" style="font-size:13px;color:var(--texto-s)"></span>
+      </div>
+    </div>
+    <div id="posicao-resultado" style="display:none">
+      <div class="kpi-row" id="posicao-kpis" style="margin-bottom:20px"></div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nº Pedido</th><th>Cliente</th><th>Estado</th><th>Origem</th>
+                <th>Entrega</th><th>Prev. Liberação</th><th>Volumes</th>
+                <th style="text-align:right">Valor Total</th><th>Progresso</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="posicao-tbody"></tbody>
+          </table>
+        </div>
+        <div id="posicao-empty" style="display:none" class="empty">
+          <p>Nenhum pedido ativo nesta data.</p>
+        </div>
+      </div>
+      <p style="margin-top:12px;font-size:12px;color:#94a3b8;text-align:right">
+        ℹ️ Os status exibidos refletem o estado atual de cada item, não o histórico na data selecionada.
+      </p>
+    </div>
+  </div>
+
+  <!-- PLANEJAMENTO PRODUTIVO -->
+  <div class="page" id="page-planejamento">
+    <h2>Planejamento Produtivo</h2>
+    <p class="subtitle">Todos os itens dos pedidos ativos, consolidados para planejamento.</p>
+    <div class="card" style="padding:14px 20px;margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+      <input class="filter-input" type="text" id="plan-busca"
+             placeholder="🔍 Buscar código, descrição ou pedido..."
+             oninput="filtrarPlanejamento()" style="flex:1;min-width:220px">
+      <select class="filter-select" id="plan-status" onchange="filtrarPlanejamento()">
+        <option value="">Todos os status</option>
+        <option value="Não iniciado">Não iniciado</option>
+        <option value="Em Produção">Em Produção</option>
+        <option value="Pausado">Pausado</option>
+        <option value="Comprado">Comprado</option>
+        <option value="Finalizado">Finalizado</option>
+      </select>
+      <span id="plan-count" style="font-size:12px;color:var(--texto-s);white-space:nowrap"></span>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortPlan('numero_pedido')" style="cursor:pointer">Nº Pedido ⇅</th>
+              <th onclick="sortPlan('codigo')" style="cursor:pointer">Código ⇅</th>
+              <th style="text-align:center">Deriv.</th>
+              <th>Descrição</th>
+              <th style="text-align:center;cursor:pointer" onclick="sortPlan('quantidade')">Qtd. ⇅</th>
+              <th onclick="sortPlan('data_entrega')" style="cursor:pointer">Entrega ⇅</th>
+              <th>Status</th>
+              <th>Observação</th>
+            </tr>
+          </thead>
+          <tbody id="plan-tbody"></tbody>
+        </table>
+      </div>
+      <div id="plan-empty" class="empty" style="display:none"><p>Nenhum item encontrado.</p></div>
+    </div>
+  </div>
+
+  <!-- PEDIDOS LIBERADOS -->
+  <div class="page" id="page-liberados">
+    <h2>Pedidos Liberados</h2>
+    <p class="subtitle">Pedidos com Previsão de Liberação definida e data já alcançada.</p>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nº Pedido</th><th>Cliente</th><th>Estado</th><th>Segmento</th>
+              <th>Status</th><th>Prev. Liberação</th><th>NF</th><th>Transportadora</th>
+              <th>Volumes</th><th style="text-align:right">Valor Total</th><th>Progresso</th>
+            </tr>
+          </thead>
+          <tbody id="liberados-tbody"></tbody>
+        </table>
+      </div>
+      <div id="liberados-empty" class="empty" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <p>Nenhum pedido liberado ainda.<br>Defina a Previsão de Liberação nos pedidos da Carteira.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="page" id="page-historico">
+    <h2>Histórico de Pedidos</h2>
+    <p class="subtitle">Pedidos finalizados e arquivados.</p>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nº Pedido</th><th>Cliente</th><th>Estado</th><th>Origem</th>
+              <th>Entrega</th><th>Volumes</th><th style="text-align:right">Valor Total</th>
+              <th>Finalizado em</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="hist-tbody"></tbody>
+        </table>
+      </div>
+      <div id="hist-empty" style="display:none" class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <p>Nenhum pedido finalizado ainda.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOVO PEDIDO -->
+  <div class="page" id="page-upload">
+    <h2>Novo Pedido</h2>
+    <p class="subtitle">Envie o PDF do pedido de venda para cadastrar automaticamente.</p>
+    <div class="card">
+      <div class="drop-zone" id="pcp-drop" onclick="document.getElementById('pcp-file').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p><strong>Clique para selecionar</strong> ou arraste o PDF aqui</p>
+        <p id="pcp-file-name"></p>
+      </div>
+      <input type="file" id="pcp-file" accept=".pdf" style="display:none" onchange="pcpFileSelected(this)">
+      <div style="margin-top:16px;display:flex;gap:10px">
+        <button class="btn btn-primary" id="btn-importar" onclick="pcpAnalisar()" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          Importar Pedido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETALHE DO PEDIDO -->
+  <div class="page" id="page-detalhe">
+    <div class="detalhe-header">
+      <div>
+        <button class="btn btn-ghost" style="margin-bottom:12px;font-size:12px" onclick="showPage(paginaAnterior)">← Voltar</button>
+        <h2 id="det-titulo">Pedido</h2>
+        <div class="detalhe-meta" id="det-meta"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:36px">
+        <button class="btn" id="btn-finalizar" onclick="finalizarPedido()">✅ Finalizar Pedido</button>
+        <button class="btn btn-danger" id="btn-excluir" onclick="deletarPedidoAtual()">🗑 Excluir Pedido</button>
+      </div>
+    </div>
+
+    <!-- Bloco Pedido Liberado -->
+    <div id="bloco-liberado" style="display:none;margin-bottom:20px">
+      <div class="card" style="border-left:4px solid #059669">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <strong style="font-size:14px;color:#065f46">🚀 Pedido Liberado</strong>
+          <div style="display:flex;align-items:center;gap:10px">
+            <label style="font-size:12px;font-weight:600;color:var(--texto-s)">Status:</label>
+            <select id="lib-status" onchange="salvarLibInfo('status_liberado', this.value)"
+                    style="padding:6px 12px;border:2px solid #059669;border-radius:20px;font-size:12px;font-weight:700;color:#065f46;background:#dcfce7;outline:none;cursor:pointer">
+              <option value="Aguardando faturamento">Aguardando faturamento</option>
+              <option value="Faturado">Faturado</option>
+              <option value="Em transporte">Em transporte</option>
+              <option value="Entregue">Entregue</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--texto-s);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">📅 Data de Liberação</label>
+            <input type="date" id="lib-dt-lib" onchange="salvarLibInfo('data_liberacao', this.value)"
+                   style="width:100%;padding:8px 12px;border:2px solid #059669;border-radius:8px;font-size:13px;font-family:inherit;outline:none;font-weight:600;color:#065f46">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--texto-s);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Data de Faturamento</label>
+            <input type="date" id="lib-dt-fat" onchange="salvarLibInfo('data_faturamento', this.value)"
+                   style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--texto-s);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nº da NF</label>
+            <input type="text" id="lib-nf" placeholder="Ex: 12345" onblur="salvarLibInfo('num_nf', this.value)"
+                   style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--texto-s);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Transportadora</label>
+            <input type="text" id="lib-transp" placeholder="Ex: Correios" onblur="salvarLibInfo('transportadora', this.value)"
+                   style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--texto-s);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Data de Entrega</label>
+            <input type="date" id="lib-dt-ent" onchange="salvarLibInfo('data_entrega_real', this.value)"
+                   style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+        </div>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--borda);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:600;color:var(--texto-s)">📄 PDF da NF:</span>
+            <label style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#f0f4ff;color:#1F2C4E;border:1px solid #c5d0e8;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">
+              ⬆ Importar PDF
+              <input type="file" id="nf-pdf-input" accept=".pdf" style="display:none" onchange="uploadNfPdf(this)">
+            </label>
+            <span id="nf-pdf-status" style="font-size:12px;color:var(--texto-s)"></span>
+          </div>
+          <button class="btn" id="btn-finalizar-liberado" onclick="finalizarLiberado()" style="background:var(--azul);color:#fff">✅ Finalizar Pedido</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Segmento -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:600;color:var(--texto-s)">Segmento:</span>
+      <select id="seg-select" onchange="salvarSegmento()"
+              style="padding:7px 14px;border:2px solid var(--borda);border-radius:8px;font-size:13px;font-weight:600;color:var(--azul);font-family:inherit;outline:none;cursor:pointer;transition:border .15s"
+              onfocus="this.style.borderColor='var(--azul-m)'"
+              onblur="this.style.borderColor='var(--borda)'">
+        <option value="">— Selecionar segmento —</option>
+        <option value="Venda">Venda</option>
+        <option value="Locação">Locação</option>
+        <option value="Locação com venda futura">Locação com venda futura</option>
+        <option value="Demonstração">Demonstração</option>
+        <option value="Backup">Backup</option>
+        <option value="AT">AT</option>
+        <option value="P&D">P&amp;D</option>
+        <option value="Material de Consumo">Material de Consumo</option>
+        <option value="Antecipado">Antecipado</option>
+      </select>
+    </div>
+
+    <!-- Previsões -->
+    <div class="previsoes-bar">
+      <div class="prev-field">
+        <label>📅 Prev. Liberação</label>
+        <input type="date" id="prev-liberacao" onchange="calcularPrevisoes()" class="prev-input prev-edit">
+      </div>
+      <div class="prev-arrow">→</div>
+      <div class="prev-field">
+        <label>🧾 Prev. Faturamento <small>(+1 dia útil)</small></label>
+        <input type="text" id="prev-faturamento" class="prev-input prev-calc" readonly placeholder="—">
+      </div>
+      <div class="prev-arrow">→</div>
+      <div class="prev-field">
+        <label>📦 Prev. Expedição <small>(+1 dia útil)</small></label>
+        <input type="text" id="prev-expedicao" class="prev-input prev-calc" readonly placeholder="—">
+      </div>
+    </div>
+
+    <div class="kpi-row" id="det-kpis"></div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th><th style="text-align:center">Deriv.</th><th>Descrição</th>
+              <th style="text-align:center">Qtd.</th><th style="text-align:right">Vlr. Unitário</th>
+              <th style="text-align:right">Valor Bruto</th><th>Entrega</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="det-itens"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Resumo Volumes -->
+    <div id="det-volumes" style="margin-top:24px;display:none">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="background:var(--azul);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-weight:700;font-size:14px;font-family:'Montserrat',sans-serif">📦 Resumo de Volumes — Expedição</span>
+          <span id="det-vol-total" style="font-size:18px;font-weight:800;font-family:'Montserrat',sans-serif"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoria</th><th>Código / Qtd</th><th>Descrição / Agrupamento</th>
+                <th style="text-align:center">Qtd. un.</th><th style="text-align:center">Volumes</th>
+              </tr>
+            </thead>
+            <tbody id="det-vol-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<div id="toast"></div>
+
+<script>
+const NIVEL_USUARIO = 'admin';
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  document.getElementById('main-content').classList.toggle('expanded');
+}
+
+const STATUS_CLASSES = {
+  "Não iniciado": "st-nao-iniciado",
+  "Em Produção":  "st-producao",
+  "Pausado":      "st-pausado",
+  "Comprado":     "st-comprado",
+  "Finalizado":   "st-finalizado"
+};
+const STATUS_OPTS = Object.keys(STATUS_CLASSES);
+let pedidoAtualId = null;
+let paginaAnterior = 'pedidos';
+
+// ── Navegação ─────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const navMap = { pedidos: 0, liberados: 1, planejamento: 2, historico: 3, posicao: 4, upload: 5 };
+  if (navMap[name] !== undefined)
+    document.querySelectorAll('.nav-item')[navMap[name]].classList.add('active');
+  if (name === 'pedidos')      carregarPedidos();
+  if (name === 'liberados')    carregarLiberados();
+  if (name === 'planejamento') carregarPlanejamento();
+  if (name === 'historico')    carregarHistoricoPCP();
+  if (name === 'posicao') {
+    const el = document.getElementById('posicao-data');
+    if (!el.value) el.value = new Date().toISOString().split('T')[0];
+    carregarPosicao();
+  }
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+let todosOsPedidos = [];
+let sortCol = 'data_entrega', sortAsc = true;
+
+async function carregarPedidos() {
+  const res = await fetch('/api/pcp/pedidos');
+  todosOsPedidos = await res.json();
+  preencherFiltros();
+  renderKpis();
+  aplicarFiltros();
+}
+
+function preencherFiltros() {
+  const estados = [...new Set(todosOsPedidos.map(p => p.estado).filter(Boolean))].sort();
+  const origens = [...new Set(todosOsPedidos.map(p => p.origem_vendas).filter(Boolean))].sort();
+  document.getElementById('f-estado').innerHTML = '<option value="">Todos os estados</option>' + estados.map(e => `<option>${e}</option>`).join('');
+  document.getElementById('f-origem').innerHTML = '<option value="">Toda origem</option>' + origens.map(o => `<option>${o}</option>`).join('');
+}
+
+function renderKpis() {
+  const total    = todosOsPedidos.length;
+  const valor    = todosOsPedidos.reduce((s, p) => s + (p.valor_total || 0), 0);
+  const pend     = todosOsPedidos.filter(p => (p.status_counts['Não iniciado'] || 0) > 0).length;
+  const prontos  = todosOsPedidos.filter(p => p.total_itens > 0 && (p.status_counts['Finalizado'] || 0) === p.total_itens).length;
+  document.getElementById('dash-kpis').innerHTML = [
+    { label: 'Total de Pedidos',  value: total,               color: 'var(--azul-m)' },
+    { label: 'Valor em Carteira', value: formatarMoeda(valor), color: '#059669'       },
+    { label: 'Com Pendências',    value: pend,                color: '#dc2626'       },
+    { label: 'Finalizados',       value: prontos,             color: '#16a34a'       },
+  ].map(k => `<div class="kpi" style="border-left-color:${k.color}">
+    <div class="label">${k.label}</div>
+    <div class="value" style="font-size:18px">${k.value}</div>
+  </div>`).join('');
+}
+
+function aplicarFiltros() {
+  const busca     = document.getElementById('f-busca').value.toLowerCase();
+  const estado    = document.getElementById('f-estado').value;
+  const origem    = document.getElementById('f-origem').value;
+  const status    = document.getElementById('f-status').value;
+  const segmento  = document.getElementById('f-segmento').value;
+  const libDe     = document.getElementById('f-lib-de').value;
+  const libAte    = document.getElementById('f-lib-ate').value;
+  const libStatus = document.getElementById('f-lib-status').value;
+
+  let lista = todosOsPedidos.filter(p => {
+    if (busca && !p.numero_pedido.includes(busca) && !p.cliente.toLowerCase().includes(busca)) return false;
+    if (estado && p.estado !== estado) return false;
+    if (origem && p.origem_vendas !== origem) return false;
+    if (status) {
+      const sc = p.status_counts;
+      if (status === 'nao_iniciado' && !(sc['Não iniciado'] > 0)) return false;
+      if (status === 'producao'     && !(sc['Em Produção'] > 0))  return false;
+      if (status === 'pausado'      && !(sc['Pausado'] > 0))      return false;
+      if (status === 'comprado'     && !(sc['Comprado'] > 0))     return false;
+      if (status === 'finalizado'   && !(sc['Finalizado'] === p.total_itens && p.total_itens > 0)) return false;
+    }
+    const lib = p.prev_liberacao || '';
+    if (libStatus === 'definida'   && !lib) return false;
+    if (libStatus === 'indefinida' && lib)  return false;
+    if (libDe  && lib && lib < libDe)  return false;
+    if (libAte && lib && lib > libAte) return false;
+    if (segmento && p.segmento !== segmento) return false;
+    return true;
+  });
+
+  lista.sort((a, b) => {
+    let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+    if (typeof va === 'number') return sortAsc ? va - vb : vb - va;
+    return sortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+  renderTabela(lista);
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortAsc = !sortAsc; else { sortCol = col; sortAsc = true; }
+  aplicarFiltros();
+}
+
+function limparFiltros() {
+  ['f-busca','f-estado','f-origem','f-status','f-lib-de','f-lib-ate','f-lib-status','f-segmento']
+    .forEach(id => document.getElementById(id).value = '');
+  aplicarFiltros();
+}
+
+function formatarDataLib(val) {
+  if (!val) return '<span style="color:#cbd5e1">—</span>';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const [a, m, d] = val.split('-');
+    return `<span style="font-weight:600;color:#326A84">${d}/${m}/${a}</span>`;
+  }
+  return `<span style="font-weight:600;color:#326A84">${val}</span>`;
+}
+
+function renderTabela(lista) {
+  const tbody = document.getElementById('dash-tbody');
+  const empty = document.getElementById('dash-empty');
+  if (!lista.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const COR = {
+    'Não iniciado':{bg:'#e0e7ff',c:'#3730a3'}, 'Em Produção':{bg:'#fef9c3',c:'#854d0e'},
+    'Pausado':{bg:'#ffedd5',c:'#9a3412'}, 'Comprado':{bg:'#e0f2fe',c:'#0369a1'},
+    'Finalizado':{bg:'#dcfce7',c:'#166534'}
+  };
+  tbody.innerHTML = lista.map(p => {
+    const sc = p.status_counts;
+    const total = p.total_itens || 1;
+    const prontos = sc['Finalizado'] || 0;
+    const pct = Math.round(prontos / total * 100);
+    const antecipado = p.segmento === 'Antecipado';
+    return `<tr style="cursor:pointer;${antecipado ? 'background:#fffbeb;' : ''}" onclick="abrirDetalhe('${p.id}','pedidos')">
+      <td><strong style="color:var(--azul)">${p.numero_pedido}</strong>${antecipado ? ' <span style="font-size:10px;background:#FFA300;color:#fff;padding:1px 7px;border-radius:10px;font-weight:700;vertical-align:middle">ANTECIPADO</span>' : ''}</td>
+      <td>${p.cliente}</td>
+      <td><span style="font-size:12px;font-weight:600">${p.estado || '—'}</span></td>
+      <td><span style="font-size:11px;font-weight:600;color:#475569">${p.segmento || '—'}</span></td>
+      <td><span style="font-size:12px">${p.origem_vendas || '—'}</span></td>
+      <td style="white-space:nowrap;font-size:13px">${p.data_entrega || '—'}</td>
+      <td style="white-space:nowrap;font-size:13px">${formatarDataLib(p.prev_liberacao)}</td>
+      <td style="text-align:center;font-weight:600;color:var(--azul)">${p.total_volumes ? `${p.total_volumes} vol` : '<span style="color:#cbd5e1">—</span>'}</td>
+      <td class="val-cell"><strong>${formatarMoeda(p.valor_total)}</strong></td>
+      <td><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${pct===100?'#16a34a':'var(--ciano)'}"></div></div></td>
+      <td><button class="btn btn-ghost" style="font-size:12px;padding:6px 12px">Ver →</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Detalhe ───────────────────────────────────────────────────────────────────
+async function abrirDetalhe(id, origem) {
+  paginaAnterior = origem || 'pedidos';
+  pedidoAtualId = id;
+  const res  = await fetch(`/api/pcp/pedido/${id}`);
+  const data = await res.json();
+  const p    = data.pedido;
+  const itens = data.itens;
+
+  document.getElementById('det-titulo').textContent = `Pedido ${p.numero_pedido}`;
+  document.getElementById('det-meta').innerHTML = `
+    <span><strong>Cliente:</strong> ${p.cliente}</span>
+    <span><strong>Estado:</strong> ${p.estado || '—'}</span>
+    <span><strong>Emissão:</strong> ${p.data_emissao || '—'}</span>
+    <span><strong>Entrega Contratual:</strong> ${p.data_entrega || '—'}</span>
+    <span><strong>Valor Total:</strong> ${formatarMoeda(p.valor_total)}</span>
+    <span><strong>Origem:</strong> ${p.origem_vendas || '—'}</span>
+    <span><strong>Frete:</strong> ${p.frete || '—'}</span>
+    ${p.obs_gerais ? `<span style="flex-basis:100%;margin-top:4px"><strong>Obs. Gerais:</strong> <em style="color:#475569">${p.obs_gerais}</em></span>` : ''}
+  `;
+
+  preencherCamposLiberado(p);
+  document.getElementById('seg-select').value = p.segmento || '';
+
+  const btnFin = document.getElementById('btn-finalizar');
+  if (p.liberado) {
+    btnFin.textContent = '✅ Pedido Liberado';
+    btnFin.style.background = '#d1fae5'; btnFin.style.color = '#065f46';
+    btnFin.style.cursor = 'default'; btnFin.onclick = null; btnFin.disabled = true;
+  } else {
+    btnFin.textContent = '🚀 Liberar Pedido';
+    btnFin.style.background = '#059669'; btnFin.style.color = '#fff';
+    btnFin.style.cursor = 'pointer'; btnFin.onclick = finalizarPedido; btnFin.disabled = false;
+  }
+
+  renderVolumes(p.total_volumes, p.volumes_resumo || []);
+  document.getElementById('prev-liberacao').value   = isoParaInput(p.prev_liberacao);
+  document.getElementById('prev-faturamento').value = p.prev_faturamento || '';
+  document.getElementById('prev-expedicao').value   = p.prev_expedicao || '';
+
+  const counts = {};
+  STATUS_OPTS.forEach(s => counts[s] = 0);
+  itens.forEach(i => counts[i.status] = (counts[i.status] || 0) + 1);
+  document.getElementById('det-kpis').innerHTML = STATUS_OPTS.map(s =>
+    `<div class="kpi"><div class="label">${s}</div><div class="value">${counts[s]}</div></div>`
+  ).join('');
+
+  document.getElementById('det-itens').innerHTML = itens.map(item => `
+    <tr>
+      <td class="cod-cell">${item.codigo}</td>
+      <td style="text-align:center;font-family:monospace;font-size:12px;color:#64748b">${item.derivacao || '—'}</td>
+      <td>${item.descricao}</td>
+      <td style="text-align:center">${formatarQtd(item.quantidade)}</td>
+      <td class="val-cell">${formatarMoeda(item.vlr_unitario)}</td>
+      <td class="val-cell"><strong>${formatarMoeda(item.vlr_bruto ?? item.vlr_total)}</strong></td>
+      <td>${item.data_entrega || '—'}</td>
+      <td>
+        <select class="status-select ${STATUS_CLASSES[item.status]||''}" onchange="atualizarStatus('${item.id}', this)">
+          ${STATUS_OPTS.map(s => `<option value="${s}" ${s===item.status?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`).join('');
+
+  showPage('detalhe');
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+async function atualizarStatus(itemId, sel) {
+  const novo = sel.value;
+  sel.className = 'status-select ' + (STATUS_CLASSES[novo] || '');
+  await fetch(`/api/pcp/item/${itemId}/status`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ status: novo })
+  });
+  const idx = planData.findIndex(i => i.item_id === itemId);
+  if (idx !== -1) planData[idx].status = novo;
+  if (pedidoAtualId && document.getElementById('page-detalhe').classList.contains('active'))
+    abrirDetalhe(pedidoAtualId);
+  toast('Status atualizado!');
+}
+
+// ── Planejamento ──────────────────────────────────────────────────────────────
+let planData = [];
+let planSortCol = 'data_entrega', planSortAsc = true;
+
+async function carregarPlanejamento() {
+  const res = await fetch('/api/pcp/planejamento');
+  planData = await res.json();
+  filtrarPlanejamento();
+}
+
+function sortPlan(col) {
+  if (planSortCol === col) planSortAsc = !planSortAsc; else { planSortCol = col; planSortAsc = true; }
+  filtrarPlanejamento();
+}
+
+function filtrarPlanejamento() {
+  const busca  = document.getElementById('plan-busca').value.toLowerCase();
+  const status = document.getElementById('plan-status').value;
+  let lista = planData.filter(i => {
+    if (status && i.status !== status) return false;
+    if (busca && !i.numero_pedido.toLowerCase().includes(busca)
+              && !i.codigo.toLowerCase().includes(busca)
+              && !i.descricao.toLowerCase().includes(busca)) return false;
+    return true;
+  });
+  lista.sort((a, b) => {
+    let va = a[planSortCol] ?? '', vb = b[planSortCol] ?? '';
+    return planSortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+  document.getElementById('plan-count').textContent = `${lista.length} item(ns)`;
+  const tbody = document.getElementById('plan-tbody');
+  const empty = document.getElementById('plan-empty');
+  if (!lista.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = lista.map(i => {
+    const cor = STATUS_CLASSES[i.status] || '';
+    return `<tr>
+      <td style="font-weight:600;color:var(--azul);white-space:nowrap">${i.numero_pedido}</td>
+      <td class="cod-cell">${i.codigo}</td>
+      <td style="text-align:center;font-family:monospace;font-size:12px;color:#64748b">${i.derivacao || '—'}</td>
+      <td style="font-size:13px">${i.descricao}</td>
+      <td style="text-align:center;font-weight:600">${i.quantidade}</td>
+      <td style="white-space:nowrap;font-size:13px">${i.data_entrega || '—'}</td>
+      <td>
+        <select class="status-select ${cor}" onchange="atualizarStatus('${i.item_id}', this)">
+          ${STATUS_OPTS.map(s => `<option value="${s}" ${s===i.status?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <input type="text" value="${(i.observacao||'').replace(/"/g,'&quot;')}"
+               placeholder="Adicionar observação..."
+               style="width:100%;min-width:160px;padding:5px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;font-family:inherit;outline:none;background:transparent;transition:border .15s"
+               onfocus="this.style.borderColor='var(--azul-m)';this.style.background='#fff'"
+               onblur="this.style.borderColor='var(--borda)';this.style.background='transparent';salvarObservacao('${i.item_id}', this.value)"
+               onkeydown="if(event.key==='Enter') this.blur()">
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function salvarObservacao(itemId, valor) {
+  const idx = planData.findIndex(i => i.item_id === itemId);
+  if (idx !== -1) planData[idx].observacao = valor;
+  await fetch(`/api/pcp/item/${itemId}/observacao`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ observacao: valor })
+  });
+  toast('Observação salva!');
+}
+
+// ── Pedidos Liberados ─────────────────────────────────────────────────────────
+async function carregarLiberados() {
+  const res = await fetch('/api/pcp/liberados');
+  const lista = await res.json();
+  const tbody = document.getElementById('liberados-tbody');
+  const empty = document.getElementById('liberados-empty');
+  if (!lista.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = lista.map(p => {
+    const sc = p.status_counts;
+    const total = p.total_itens || 1;
+    const prontos = sc['Finalizado'] || 0;
+    const pct = Math.round(prontos / total * 100);
+    const COR_LIB = {
+      'Aguardando faturamento': {bg:'#fef9c3',c:'#854d0e'}, 'Faturado': {bg:'#e0f2fe',c:'#0369a1'},
+      'Em transporte': {bg:'#ffedd5',c:'#9a3412'}, 'Entregue': {bg:'#dcfce7',c:'#166534'}
+    };
+    const stLib = p.status_liberado || 'Aguardando faturamento';
+    const corLib = COR_LIB[stLib] || {bg:'#f1f5f9',c:'#475569'};
+    return `<tr style="cursor:pointer" onclick="abrirDetalhe('${p.id}','liberados')">
+      <td><strong style="color:var(--azul)">${p.numero_pedido}</strong></td>
+      <td>${p.cliente}</td><td>${p.estado || '—'}</td>
+      <td style="font-size:11px;font-weight:600;color:#475569">${p.segmento || '—'}</td>
+      <td><span style="background:${corLib.bg};color:${corLib.c};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap">${stLib}</span></td>
+      <td style="font-weight:600;color:#326A84">${formatarDataLib(p.prev_liberacao)}</td>
+      <td style="font-size:12px">${p.num_nf || '—'}</td>
+      <td style="font-size:12px">${p.transportadora || '—'}</td>
+      <td style="font-weight:600;color:var(--azul)">${p.total_volumes ? p.total_volumes + ' vol' : '—'}</td>
+      <td class="val-cell"><strong>${formatarMoeda(p.valor_total)}</strong></td>
+      <td>
+        <div class="progress-bar" style="width:90px"><div class="progress-fill" style="width:${pct}%;background:${pct===100?'#16a34a':'var(--ciano)'}"></div></div>
+        <div style="font-size:10px;color:var(--texto-s);margin-top:2px">${prontos}/${total} fin.</div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Posição por Data ──────────────────────────────────────────────────────────
+async function carregarPosicao() {
+  const data = document.getElementById('posicao-data').value;
+  if (!data) return;
+  const res  = await fetch(`/api/pcp/posicao?data=${data}`);
+  const lista = await res.json();
+  const [a, m, d] = data.split('-');
+  document.getElementById('posicao-info').textContent = `${lista.length} pedido(s) ativo(s) em ${d}/${m}/${a}`;
+  document.getElementById('posicao-resultado').style.display = 'block';
+  const valor    = lista.reduce((s, p) => s + (p.valor_total || 0), 0);
+  const pendentes = lista.filter(p => (p.status_counts['Não iniciado'] || 0) > 0).length;
+  document.getElementById('posicao-kpis').innerHTML = [
+    { label: 'Pedidos Ativos',    value: lista.length,         color: 'var(--azul-m)' },
+    { label: 'Valor em Carteira', value: formatarMoeda(valor), color: '#059669'       },
+    { label: 'Com Pendências',    value: pendentes,            color: '#dc2626'       },
+  ].map(k => `<div class="kpi" style="border-left-color:${k.color}">
+    <div class="label">${k.label}</div><div class="value" style="font-size:18px">${k.value}</div>
+  </div>`).join('');
+  const tbody = document.getElementById('posicao-tbody');
+  const empty = document.getElementById('posicao-empty');
+  if (!lista.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = lista.map(p => {
+    const total = p.total_itens || 1;
+    const prontos = (p.status_counts['Finalizado'] || 0);
+    const pct = Math.round(prontos / total * 100);
+    return `<tr>
+      <td onclick="abrirDetalhe('${p.id}','posicao')" style="cursor:pointer"><strong style="color:var(--azul)">${p.numero_pedido}</strong></td>
+      <td onclick="abrirDetalhe('${p.id}','posicao')" style="cursor:pointer">${p.cliente}</td>
+      <td>${p.estado || '—'}</td><td>${p.origem_vendas || '—'}</td>
+      <td>${p.data_entrega || '—'}</td>
+      <td>${formatarDataLib(p.prev_liberacao)}</td>
+      <td style="text-align:center;font-weight:600;color:var(--azul)">${p.total_volumes ? p.total_volumes + ' vol' : '—'}</td>
+      <td class="val-cell"><strong>${formatarMoeda(p.valor_total)}</strong></td>
+      <td><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${pct===100?'#16a34a':'var(--ciano)'}"></div></div></td>
+      <td>${NIVEL_USUARIO === 'admin' ? `
+        <button class="btn btn-danger" style="padding:5px 10px;font-size:12px;white-space:nowrap"
+          onclick="excluirDaPosicao('${p.id}','${p.numero_pedido}')">🗑 Excluir</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function excluirDaPosicao(id, numeroPedido) {
+  if (!confirm(`Excluir Pedido ${numeroPedido}? Esta ação remove o pedido de todas as abas.`)) return;
+  const res  = await fetch(`/api/pcp/pedido/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (data.erro) { toast(data.erro, 'error'); return; }
+  toast(`Pedido ${numeroPedido} excluído.`);
+  carregarPosicao();
+}
+
+// ── Finalizar / Histórico ─────────────────────────────────────────────────────
+async function finalizarPedido() {
+  if (!confirm('Liberar este pedido? Ele será movido para "Pedidos Liberados".')) return;
+  await fetch(`/api/pcp/pedido/${pedidoAtualId}/finalizar`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ acao: 'liberar' })
+  });
+  toast('🚀 Pedido liberado!');
+  setTimeout(() => showPage('pedidos'), 1200);
+}
+
+async function carregarHistoricoPCP() {
+  const res  = await fetch('/api/pcp/historico');
+  const data = await res.json();
+  const tbody = document.getElementById('hist-tbody');
+  const empty = document.getElementById('hist-empty');
+  if (!data.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = data.map(p => `
+    <tr style="cursor:pointer" onclick="abrirDetalhe('${p.id}','posicao')">
+      <td><strong style="color:var(--azul)">${p.numero_pedido}</strong></td>
+      <td>${p.cliente}</td><td>${p.estado || '—'}</td><td>${p.origem_vendas || '—'}</td>
+      <td>${p.data_entrega || '—'}</td>
+      <td style="font-weight:600;color:var(--azul);text-align:center">${p.total_volumes ? p.total_volumes + ' vol' : '—'}</td>
+      <td class="val-cell"><strong>${formatarMoeda(p.valor_total)}</strong></td>
+      <td style="font-size:12px;color:var(--texto-s)">${p.finalizado_em}</td>
+      <td><button class="btn btn-ghost" style="font-size:12px;padding:6px 10px"
+          onclick="event.stopPropagation();restaurarPedido('${p.id}','${p.numero_pedido}')">↩ Restaurar</button></td>
+    </tr>`).join('');
+}
+
+async function restaurarPedido(id, num) {
+  if (!confirm(`Devolver Pedido ${num} para Pedidos Liberados?`)) return;
+  await fetch(`/api/pcp/pedido/${id}/finalizar`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ acao: 'restaurar_liberado' })
+  });
+  toast('Pedido devolvido para Pedidos Liberados!');
+  carregarHistoricoPCP(); carregarLiberados();
+}
+
+async function deletarPedidoAtual() {
+  if (!confirm('Excluir este pedido e todos os seus itens?')) return;
+  await fetch(`/api/pcp/pedido/${pedidoAtualId}`, { method: 'DELETE' });
+  toast('Pedido excluído.');
+  showPage(paginaAnterior);
+}
+
+// ── Upload ────────────────────────────────────────────────────────────────────
+let pcpFile = null;
+
+function pcpFileSelected(input) {
+  pcpFile = input.files[0];
+  document.getElementById('pcp-file-name').textContent = pcpFile ? pcpFile.name : '';
+  document.getElementById('btn-importar').disabled = !pcpFile;
+}
+
+async function pcpAnalisar() {
+  if (!pcpFile) return;
+  const btn = document.getElementById('btn-importar');
+  btn.disabled = true; btn.textContent = 'Importando...';
+  const fd = new FormData();
+  fd.append('pdf', pcpFile);
+  try {
+    const res  = await fetch('/api/pcp/analisar', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.erro) { toast(data.erro, 'error'); return; }
+    toast(`✅ ${data.total_itens} itens importados!`);
+    pcpFile = null;
+    document.getElementById('pcp-file').value = '';
+    document.getElementById('pcp-file-name').textContent = '';
+    abrirDetalhe(data.pedido_id);
+  } catch(e) {
+    toast('Erro: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.innerHTML = '🔍 Importar Pedido';
+  }
+}
+
+const dropEl = document.getElementById('pcp-drop');
+dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('drag'); });
+dropEl.addEventListener('dragleave', () => dropEl.classList.remove('drag'));
+dropEl.addEventListener('drop', e => {
+  e.preventDefault(); dropEl.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith('.pdf')) {
+    pcpFile = f;
+    document.getElementById('pcp-file-name').textContent = f.name;
+    document.getElementById('btn-importar').disabled = false;
+  }
+});
+
+// ── Volumes ───────────────────────────────────────────────────────────────────
+const COR_CAT = {
+  'Equipamento':'#E6F9FC', 'Armário de Revenda':'#E6F9FC', 'Acessório de Armário':'#E6F9FC',
+  'Acessório':'#E2EFDA', 'Instrumental':'#FFF2CC', 'Bundle':'#EDE7F6', 'NÃO ENCONTRADO':'#FFE0E0'
+};
+
+function renderVolumes(total, resumo) {
+  const wrap = document.getElementById('det-volumes');
+  if (!resumo || resumo.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  document.getElementById('det-vol-total').textContent = `${total} volume(s)`;
+  const tbody = document.getElementById('det-vol-tbody');
+  tbody.innerHTML = resumo.map(item => {
+    const cor = COR_CAT[item.categoria] || '#fff';
+    const isGrupo = item.tipo === 'grupo';
+    if (isGrupo) {
+      const dist = (item.distribuicao || []).map((vol, vi) => {
+        const itensStr = vol.map(x => `${x.codigo} (×${x.qtd})`).join(' | ');
+        return `<tr style="background:#f8fafc;font-size:11px">
+          <td style="padding:6px 14px;color:#6b7a99">↳ Volume ${vi+1}</td>
+          <td colspan="3" style="padding:6px 14px;color:#374151">${itensStr}</td>
+          <td style="text-align:center;padding:6px 14px;color:#6b7a99">1</td>
+        </tr>`;
+      }).join('');
+      return `<tr style="background:var(--azul);color:#fff;font-weight:700">
+        <td style="padding:10px 14px">${item.categoria}</td>
+        <td style="padding:10px 14px">${item.codigo}</td>
+        <td style="padding:10px 14px">${item.descricao}</td>
+        <td style="text-align:center;padding:10px 14px">${item.quantidade}</td>
+        <td style="text-align:center;padding:10px 14px">${item.volumes}</td>
+      </tr>${dist}`;
+    }
+    return `<tr style="background:${cor}">
+      <td style="padding:9px 14px;font-size:12px">${item.categoria}</td>
+      <td style="padding:9px 14px;font-family:monospace;font-size:12px">${item.codigo}</td>
+      <td style="padding:9px 14px;font-size:12px">${item.descricao}</td>
+      <td style="text-align:center;padding:9px 14px">${item.quantidade}</td>
+      <td style="text-align:center;padding:9px 14px;font-weight:700">${item.volumes}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Pedido Liberado ───────────────────────────────────────────────────────────
+function preencherCamposLiberado(p) {
+  const bloco  = document.getElementById('bloco-liberado');
+  const btnLib = document.getElementById('btn-finalizar');
+  bloco.style.display = p.liberado ? 'block' : 'none';
+  if (btnLib) btnLib.style.display = p.liberado ? 'none' : '';
+  if (!p.liberado) return;
+  document.getElementById('lib-status').value = p.status_liberado || 'Aguardando faturamento';
+  document.getElementById('lib-dt-lib').value = p.data_liberacao || '';
+  const nfStatus = document.getElementById('nf-pdf-status');
+  if (p.nf_pdf_nome) {
+    nfStatus.innerHTML = `<a href="/api/pcp/pedido/${p.id}/nf_pdf" target="_blank" style="color:#326A84;font-weight:600;text-decoration:none">📄 ${p.nf_pdf_nome} ↗</a>`;
+  } else {
+    nfStatus.textContent = 'Nenhum arquivo anexado';
+  }
+  document.getElementById('lib-dt-fat').value = p.data_faturamento || '';
+  document.getElementById('lib-nf').value     = p.num_nf || '';
+  document.getElementById('lib-transp').value = p.transportadora || '';
+  document.getElementById('lib-dt-ent').value = p.data_entrega_real || '';
+}
+
+async function uploadNfPdf(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('nf-pdf-status');
+  status.textContent = 'Enviando...';
+  const fd = new FormData();
+  fd.append('pdf', file);
+  try {
+    const res  = await fetch(`/api/pcp/pedido/${pedidoAtualId}/nf_pdf`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.erro) { toast(data.erro, 'error'); status.textContent = 'Erro no envio'; return; }
+    status.innerHTML = `<a href="/api/pcp/pedido/${pedidoAtualId}/nf_pdf" target="_blank" style="color:#326A84;font-weight:600;text-decoration:none">📄 ${data.nome} ↗</a>`;
+    if (data.num_nf        && !document.getElementById('lib-nf').value)    { document.getElementById('lib-nf').value = data.num_nf; await salvarLibInfo('num_nf', data.num_nf); }
+    if (data.transportadora && !document.getElementById('lib-transp').value) { document.getElementById('lib-transp').value = data.transportadora; await salvarLibInfo('transportadora', data.transportadora); }
+    if (data.data_faturamento && !document.getElementById('lib-dt-fat').value) { document.getElementById('lib-dt-fat').value = data.data_faturamento; await salvarLibInfo('data_faturamento', data.data_faturamento); }
+    const sel = document.getElementById('lib-status');
+    if (sel) { sel.value = 'Faturado'; }
+    toast(`📄 PDF anexado — Status: Faturado`);
+    input.value = '';
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function salvarLibInfo(campo, valor) {
+  await fetch(`/api/pcp/pedido/${pedidoAtualId}/liberado_info`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ [campo]: valor })
+  });
+  toast('Salvo!');
+}
+
+async function finalizarLiberado() {
+  if (!confirm('Finalizar este pedido? Ele irá para o Histórico.')) return;
+  await fetch(`/api/pcp/pedido/${pedidoAtualId}/finalizar`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ acao: 'finalizar_liberado' })
+  });
+  toast('✅ Pedido finalizado e arquivado no Histórico!');
+  setTimeout(() => showPage('liberados'), 1200);
+}
+
+// ── Segmento ──────────────────────────────────────────────────────────────────
+async function salvarSegmento() {
+  const seg = document.getElementById('seg-select').value;
+  await fetch(`/api/pcp/pedido/${pedidoAtualId}/segmento`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ segmento: seg })
+  });
+  toast(seg ? `Segmento: ${seg}` : 'Segmento removido');
+}
+
+// ── Previsões ─────────────────────────────────────────────────────────────────
+function addDiasUteis(dateStr, dias) {
+  const d = new Date(dateStr + 'T12:00:00');
+  let adicionados = 0;
+  while (adicionados < dias) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) adicionados++;
+  }
+  return d;
+}
+
+function formatarDataBR(d) {
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function isoParaInput(str) {
+  if (!str) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    const [d, m, a] = str.split('/');
+    return `${a}-${m}-${d}`;
+  }
+  return str;
+}
+
+async function calcularPrevisoes() {
+  const libVal = document.getElementById('prev-liberacao').value;
+  if (!libVal) {
+    document.getElementById('prev-faturamento').value = '';
+    document.getElementById('prev-expedicao').value   = '';
+    return;
+  }
+  const fat = addDiasUteis(libVal, 1);
+  const exp = addDiasUteis(libVal, 2);
+  const fatStr = formatarDataBR(fat);
+  const expStr = formatarDataBR(exp);
+  document.getElementById('prev-faturamento').value = fatStr;
+  document.getElementById('prev-expedicao').value   = expStr;
+  await fetch(`/api/pcp/pedido/${pedidoAtualId}/previsoes`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ prev_liberacao: libVal, prev_faturamento: fatStr, prev_expedicao: expStr })
+  });
+  toast('Previsões salvas!');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function formatarMoeda(v) {
+  if (!v && v !== 0) return '—';
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function formatarQtd(v) {
+  return Number(v) % 1 === 0 ? Number(v).toFixed(0) : Number(v).toFixed(2);
+}
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type === 'error' ? ' error' : '');
+  setTimeout(() => t.className = '', 3500);
+}
+
+// Init
+carregarPedidos();
+</script>
+</body>
+</html>
